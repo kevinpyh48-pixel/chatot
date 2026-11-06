@@ -16,7 +16,7 @@ description: 강의 녹음(.m4a)을 의학용어가 정확한 녹취록(.md)으�
 
 ## 절차
 
-**① 소스 확인** — 녹음과 같은 강의의 강의자료를 찾는다: `<강의>/<강의>.md`(변환본) > 원본 PDF(시스템 파이썬 `pymupdf`로 텍스트 추출). 한글 경로는 NFD라 리터럴 join이 빗나갈 수 있다 — `os.listdir` + NFC 정규화로 접근. 강의자료가 아예 없으면 용어집 없이 전사하되 헤더에 `> ⚠️ 강의자료 없이 전사 — 용어 grounding 미적용`을 단다.
+**① 소스 확인** — 녹음과 같은 강의의 강의자료를 찾는다: `<강의>/<강의>.md`(변환본) > 원본 PDF(`~/.cache/chatot/.venv/bin/python`의 `pymupdf`로 텍스트 추출). 한글 경로는 NFD라 리터럴 join이 빗나갈 수 있다 — `os.listdir` + NFC 정규화로 접근. 강의자료가 아예 없으면 용어집 없이 전사하되 헤더에 `> ⚠️ 강의자료 없이 전사 — 용어 grounding 미적용`을 단다.
 
 **② 프롬프트 생성** — 강의자료를 요약해 **"원하는 출력 문체 샘플"**을 한 문단(200~250자)으로 써서 스크래치패드에 저장한다. 용어를 나열하지 말고, **한국어 문장 안에 영문 용어가 라틴 문자로 박힌 실제 문장**으로 쓴다 — whisper의 initial_prompt는 어휘보다 **문체**를 따라가기 때문이다.
 
@@ -26,9 +26,9 @@ description: 강의 녹음(.m4a)을 의학용어가 정확한 녹취록(.md)으�
 
 교정용 용어 목록은 따로 만들 필요 없다 — ⑤에서 강의자료 원문을 직접 대조하면 된다.
 
-**③ 전사** — venv 준비 후 스크립트 실행(둘 다 멱등):
+**③ 전사** — 먼저 환경 준비(처음 한 번이면 되고, 매번 돌려도 안전하다. uv·venv·mlx-whisper·ffmpeg·pymupdf를 알아서 깐다. 애플 실리콘 맥 전용):
 ```bash
-uv venv --python 3.11 ~/.cache/chatot/.venv 2>/dev/null; uv pip install --python ~/.cache/chatot/.venv/bin/python -q mlx-whisper soundfile
+bash ~/.claude/skills/chatot/scripts/setup.sh
 ~/.cache/chatot/.venv/bin/python ~/.claude/skills/chatot/scripts/transcribe.py "녹음.m4a" --glossary 프롬프트.txt --out raw.md
 ```
 스크립트는 ffmpeg로 16kHz 변환하면서 **음량 정규화**(highpass + dynaudnorm + loudnorm)를 건다. 교실 원거리 녹음은 평균 −37dB까지 내려가는데, 정규화 없이는 「탈구→탈부」「사지→사진」처럼 음차가 깨지는 비율이 확 올라간다(척추골절 앞 3분 A/B 실측). ffmpeg가 없으면 afconvert로 폴백(드라이브 한글 경로에서 멈출 수 있음), 끄려면 `--no-norm`. 전사 전에 `ffmpeg -i 녹음.m4a -af volumedetect -f null -`로 평균 음량이 −30dB보다 작은지 한 번 본다.
